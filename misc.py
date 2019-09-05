@@ -1,5 +1,6 @@
 import sys
 import time
+from tqdm import tqdm
 
 
 TOTAL_BAR_LENGTH = 80
@@ -43,7 +44,6 @@ def progress_bar(current, total, msg=None):
     else:
         sys.stdout.write('\n')
     sys.stdout.flush()
-
 
 def format_time(seconds):
     days = int(seconds / 3600/24)

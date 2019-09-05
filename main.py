@@ -4,12 +4,12 @@ import torch.backends.cudnn as cudnn
 import torchvision
 from torchvision import transforms as transforms
 import numpy as np
+from tqdm import tqdm
 
 import argparse
 
 from models import *
 from misc import progress_bar
-
 
 CLASSES = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
@@ -58,7 +58,7 @@ class Solver(object):
             self.device = torch.device('cpu')
 
         # self.model = LeNet().to(self.device)
-        # self.model = AlexNet().to(self.device)
+        self.model = AlexNet().to(self.device)
         # self.model = VGG11().to(self.device)
         # self.model = VGG13().to(self.device)
         # self.model = VGG16().to(self.device)
@@ -73,10 +73,10 @@ class Solver(object):
         # self.model = DenseNet161().to(self.device)
         # self.model = DenseNet169().to(self.device)
         # self.model = DenseNet201().to(self.device)
-        self.model = WideResNet(depth=28, num_classes=10).to(self.device)
+        # self.model = WideResNet(depth=28, num_classes=10).to(self.device)
 
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
-        self.scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[75, 150], gamma=0.5)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
+        self.scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=[100, 150, 180])
         self.criterion = nn.CrossEntropyLoss().to(self.device)
 
     def train(self):
@@ -86,7 +86,8 @@ class Solver(object):
         train_correct = 0
         total = 0
 
-        for batch_num, (data, target) in enumerate(self.train_loader):
+        pbar = tqdm(self.train_loader)
+        for batch_num, (data, target) in enumerate(pbar):
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
             output = self.model(data)
@@ -100,8 +101,9 @@ class Solver(object):
             # train_correct incremented by one if predicted right
             train_correct += np.sum(prediction[1].cpu().numpy() == target.cpu().numpy())
 
-            progress_bar(batch_num, len(self.train_loader), 'Loss: %.4f | Acc: %.3f%% (%d/%d)'
+            pbar.set_description('Loss: %.4f | Acc: %.3f%% (%d/%d)'
                          % (train_loss / (batch_num + 1), 100. * train_correct / total, train_correct, total))
+        pbar.close()
 
         return train_loss, train_correct / total
 
@@ -113,7 +115,8 @@ class Solver(object):
         total = 0
 
         with torch.no_grad():
-            for batch_num, (data, target) in enumerate(self.test_loader):
+            pbar = tqdm(self.test_loader)
+            for batch_num, (data, target) in enumerate(pbar):
                 data, target = data.to(self.device), target.to(self.device)
                 output = self.model(data)
                 loss = self.criterion(output, target)
@@ -122,8 +125,9 @@ class Solver(object):
                 total += target.size(0)
                 test_correct += np.sum(prediction[1].cpu().numpy() == target.cpu().numpy())
 
-                progress_bar(batch_num, len(self.test_loader), 'Loss: %.4f | Acc: %.3f%% (%d/%d)'
+                pbar.set_description('Loss: %.4f | Acc: %.3f%% (%d/%d)'
                              % (test_loss / (batch_num + 1), 100. * test_correct / total, test_correct, total))
+            pbar.close()
 
         return test_loss, test_correct / total
 
